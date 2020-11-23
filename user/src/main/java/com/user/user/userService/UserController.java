@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -76,40 +77,43 @@ public class UserController {
 		// TODO Auto-generated constructor stub
 	}
 	
-	@RequestMapping(path = "/createUser", method=RequestMethod.POST)
-	public ResponseEntity<ArrayList<USER>> createUser(@RequestBody USER user) {
-		USER newUser = new USER();	
-		newUser.setUserName(user.getUserName());
-		newUser.setFirstName(user.getFirstName());
-		newUser.setLastName(user.getLastName());
-		newUser.setEmail(user.getEmail());
-		newUser.setDareOfBirth(user.getDareOfBirth());
-		newUser.setPhone(user.getPhone());
-		newUser.setGender(user.getGender());
-		App.dummyData.add(newUser);
-		return new ResponseEntity<ArrayList<USER>>(App.dummyData,HttpStatus.OK);
-	}
+//	@RequestMapping(path = "/createUser", method=RequestMethod.POST)
+//	public ResponseEntity<ArrayList<USER>> createUser(@RequestBody USER user) {
+//		USER newUser = new USER();	
+//		newUser.setUserName(user.getUserName());
+//		newUser.setFirstName(user.getFirstName());
+//		newUser.setLastName(user.getLastName());
+//		newUser.setEmail(user.getEmail());
+//		newUser.setDareOfBirth(user.getDareOfBirth());
+//		newUser.setPhone(user.getPhone());
+//		newUser.setGender(user.getGender());
+//		App.dummyData.add(newUser);
+//		return new ResponseEntity<ArrayList<USER>>(App.dummyData,HttpStatus.OK);
+//	}
+	
+	
+//	ได้แล้ว http://localhost:8888/getUserByUsername?username=testUser
 	@RequestMapping("/getUserByUsername")
-	public USER getUserByUsername(@RequestParam(value="username", defaultValue="") String username) {
-		ArrayList<USER> findUser = new ArrayList<>();
-		USER[] arr = App.dummyData.stream().filter(e -> e.getUserName().equals(username)).toArray(USER[]::new);
-		Collections.addAll(findUser, arr);
-		return findUser.get(0);
-	}
+	public USER getUserByUsername(@RequestParam(value="username", defaultValue="") String username) throws InterruptedException, ExecutionException {
+//		db get user by userName
 	
-	@RequestMapping("/getUserByID")
-	public USER getUserByID(@RequestParam(value="id", defaultValue="") Integer id) {
-		ArrayList<USER> findUser = new ArrayList<>();
-		USER[] arr = App.dummyData.stream().filter(e -> e.getId().equals(id)).toArray(USER[]::new);
-		Collections.addAll(findUser, arr);
-		return findUser.get(0);
+		//asynchronously retrieve multiple documents
+		ApiFuture<QuerySnapshot> future =
+		    db.collection("user").whereEqualTo("userName", username).get();
+		// future.get() blocks on response
+		List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+		for (DocumentSnapshot document : documents) {
+		  System.out.println(document.getId() + " => " + document.toObject(USER.class));
+		}
+		return demoUser;
+
 	}
-	
-	//getAllUser
-	@RequestMapping(path = "/getAllUser", method=RequestMethod.GET)
-	public ResponseEntity<ArrayList<USER>> createUser() throws InterruptedException, ExecutionException{
-//		db get user
-		DocumentReference userRef = db.getFirebase().collection("user").document("1");
+//ได้แล้ว http://localhost:8888/getUserByID?id=1 idของdocument 
+	@RequestMapping(path = "/getUserByID", method=RequestMethod.GET)
+	public USER getUserByID(@RequestParam(value="id", defaultValue="") Integer id) throws InterruptedException, ExecutionException{
+//		db get user by id
+		String userID = id.toString();
+		DocumentReference userRef = db.getFirebase().collection("user").document(userID);
 		ApiFuture<DocumentSnapshot> querySnapshot = userRef.get();
 		DocumentSnapshot document = null;
 		try {
@@ -120,8 +124,11 @@ public class UserController {
 		}
 		if (document.exists()) {
 		  System.out.println("Document data: " + document.getData());
+		  USER u = document.toObject(USER.class);
+		  return u;
 		} else {
 		  System.out.println("No such document!");
+		  return null;
 		}
 		//asynchronously retrieve all documents
 //		ApiFuture<QuerySnapshot> future = db.collection("user").get();
@@ -130,9 +137,25 @@ public class UserController {
 //		for (QueryDocumentSnapshot document : documents) {
 //		  System.out.println(document.getId() + " => " + document.toObject(User.class));
 //		}
-		return new ResponseEntity<ArrayList<USER>>(App.dummyData,HttpStatus.OK);
+//		return new ResponseEntity<ArrayList<USER>>(App.dummyData,HttpStatus.OK);
 	}
 	
+	
+	//ได้แล้ว getAllUser
+	@RequestMapping(path = "/getAllUser", method=RequestMethod.GET)
+//	@GetMapping("/getAllUser")  
+	public List<USER> getSalesAll() throws InterruptedException, ExecutionException {
+		
+		List<USER> empList = new ArrayList<USER>();
+		CollectionReference userRef= db.getFirebase().collection("user");
+		ApiFuture<QuerySnapshot> querySnapshot= userRef.get();
+		for(DocumentSnapshot doc:querySnapshot.get().getDocuments()) {
+			USER emp = doc.toObject(USER.class);
+			empList.add(emp);
+		}
+		return empList;
+	}
+
 	///groupByGender/
 	@RequestMapping(path = "/groupByGender", method=RequestMethod.GET)
 	public ResponseEntity<ArrayList<USER>> groupByGender(@RequestParam(value="gender", defaultValue="Male") String gender){
